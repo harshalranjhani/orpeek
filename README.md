@@ -13,11 +13,14 @@ Run from this repository now:
 npx github:harshalranjhani/orpeek
 ```
 
-Enter your [OpenRouter management key](https://openrouter.ai/settings/management-keys)
+Enter your [OpenRouter API key](https://openrouter.ai/settings/keys)
 once at the hidden prompt. macOS Keychain stores it for subsequent runs.
-An ordinary inference key cannot provide account analytics.
+Inference keys show key limits, remaining allowance, and daily, weekly, monthly,
+and all-time usage. Management keys show account credits and per-model analytics.
+Key allowance is not the account credit balance. An unlimited key does not mean
+unlimited account credits.
 
-Illustrative output (sample values):
+Illustrative management-key output (sample values):
 
 ```text
 orpeek  /  OpenRouter usage
@@ -52,6 +55,12 @@ orpeek auth status
 orpeek auth remove
 orpeek auth remove --yes
 ```
+
+Period, sort, and row options apply only to management-key model analytics.
+Inference-key windows come directly from OpenRouter, not rolling periods.
+Inference JSON has mode=inference, key_usage, period=null, account=null,
+models=null, and explicit capabilities. Expected capability limits exit 0.
+No key labels or credential prefixes are included.
 
 Periods: 7d, 30d, 90d, 365d; default 30d. Sort: spend, calls, tokens.
 JSON always includes every retrieved model, regardless of the display row limit.

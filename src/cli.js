@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
-import { Failure, request, credits, analytics, sortModels } from './api.js';
+import { Failure, request, credits, analytics, sortModels, currentKey } from './api.js';
 import { keychain, prompt, setup } from './auth.js';
 import { render } from './render.js';
 const help = `orpeek — OpenRouter usage at a glance
@@ -19,7 +19,7 @@ Usage: orpeek [options]
   --help                     Show help
   --version                  Show version
 
-Requires macOS, Node 20+, and an OpenRouter management key.
+Requires macOS, Node 20+, and an OpenRouter API key.
 `;
 async function main() {
   let args;
@@ -32,10 +32,10 @@ async function main() {
   if (!['7d','30d','90d','365d'].includes(o.period) || !/^[1-9]\d*$/.test(o.top) || Number(o.top)>10000 || !['spend','calls','tokens'].includes(o.sort) || !['','auth set','auth status','auth remove'].includes(command) || (o.yes && command !== 'auth remove')) throw new Failure('Invalid arguments. Run orpeek --help.',2);
   if (process.platform !== 'darwin') throw new Failure('orpeek requires macOS Keychain.',3);
   if (command === 'auth set') { await setup(); return; }
-  if (command === 'auth status') { console.log(await keychain('get') === null ? 'No management key configured.' : 'Management key configured (not remotely verified).'); return; }
+  if (command === 'auth status') { console.log(await keychain('get') === null ? 'No API key configured.' : 'API key configured (not remotely verified).'); return; }
   if (command === 'auth remove') {
-    if (!o.yes && (await prompt('Remove the saved management key? [y/N] ')).toLowerCase() !== 'y') return;
-    await keychain('remove'); console.log('Management key removed.'); return;
+    if (!o.yes && (await prompt('Remove the saved API key? [y/N] ')).toLowerCase() !== 'y') return;
+    await keychain('remove'); console.log('API key removed.'); return;
   }
   let key = await keychain('get');
   if (key === null) {
@@ -44,6 +44,15 @@ async function main() {
   }
   const now = new Date(), period = {label:o.period,start_utc:new Date(now.getTime()-parseInt(o.period)*86400000).toISOString(),end_utc:now.toISOString()};
   const data = {schema_version:1,source:'openrouter',generated_at:now.toISOString(),freshness:'live',period,account:null,models:null,model_results_complete:false,warnings:[]};
+  const keyUsage = await currentKey(key);
+  data.mode = keyUsage.is_management_key ? 'management' : 'inference';
+  if (data.mode === 'inference') {
+    data.key_usage = keyUsage;
+    data.period = null;
+    data.capabilities = {account_credits:false,model_analytics:false};
+    console.log(o.json ? JSON.stringify(data,null,2) : render(data,o,process.stdout.columns ?? 80).trimEnd());
+    return;
+  }
   const results = await Promise.allSettled([request(key,'/credits').then(credits),analytics(key,period)]);
   for (const [i,result] of results.entries()) {
     if (result.status === 'rejected') data.warnings.push({section:i ? 'models' : 'account',message:result.reason instanceof Failure ? result.reason.message : 'Unexpected API schema.',code:result.reason.code ?? 4});

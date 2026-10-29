@@ -17,7 +17,7 @@ export async function request(key, path, body, fetcher = fetch) {
     if (response.ok) {
       try { return await response.json(); } catch { throw new Failure('OpenRouter returned invalid JSON.'); }
     }
-    if (response.status === 401) throw new Failure('Management key invalid or expired. Run orpeek auth set.', 3);
+    if (response.status === 401) throw new Failure('API key invalid or expired. Run orpeek auth set.', 3);
     if (response.status === 403) throw new Failure('Management key permission required: https://openrouter.ai/settings/management-keys', 3);
     if (!attempt && (response.status >= 500 || [408,429].includes(response.status))) {
       const header = response.headers.get('retry-after');
@@ -62,4 +62,25 @@ export function sortModels(rows, sort) {
   const field = {spend:'credit_spend_usd',calls:'requests',tokens:'total_tokens'}[sort];
   const compare = (a,b) => a === b ? 0 : a == null ? 1 : b == null ? -1 : (typeof a === 'string' || typeof b === 'string' ? BigInt(a) > BigInt(b) : a > b) ? -1 : 1;
   return rows.sort((a,b) => compare(a[field],b[field]) || compare(a.requests,b.requests) || a.model.localeCompare(b.model,'en'));
+}
+
+export async function currentKey(key, fetcher = fetch) {
+  const {data} = await request(key,'/key',undefined,fetcher);
+  if (!data || typeof data !== 'object' || Array.isArray(data) ||
+      (typeof data.is_management_key !== 'boolean' && numeric(data.usage) === null)) {
+    throw new Failure('Key details unavailable: unexpected response.');
+  }
+  return {
+    is_management_key: data.is_management_key === true,
+    limit_usd: numeric(data.limit),
+    unlimited: data.limit === null,
+    remaining_limit_usd: numeric(data.limit_remaining),
+    limit_reset: data.limit_reset === null ? null : ['daily','weekly','monthly'].includes(data.limit_reset) ? data.limit_reset : 'unknown',
+    include_byok_in_limit: typeof data.include_byok_in_limit === 'boolean' ? data.include_byok_in_limit : null,
+    usage_usd: numeric(data.usage),
+    usage_daily_usd: numeric(data.usage_daily),
+    usage_weekly_usd: numeric(data.usage_weekly),
+    usage_monthly_usd: numeric(data.usage_monthly),
+    byok_usage_usd: numeric(data.byok_usage)
+  };
 }

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Failure, request } from './api.js';
+import { Failure, currentKey } from './api.js';
 export function keychain(action, secret) {
   return new Promise((resolve,reject) => {
     const child = spawn(fileURLToPath(new URL('../bin/keychain',import.meta.url)),[action],{stdio:['pipe','pipe','ignore']});
@@ -35,11 +35,10 @@ export function prompt(label, hidden = false) {
   });
 }
 export async function setup() {
-  process.stderr.write('Enter an OpenRouter management key (not an inference key).\nhttps://openrouter.ai/settings/management-keys\n');
-  const key = await prompt('Management key (hidden): ',true);
+  process.stderr.write('Enter an OpenRouter API key. Inference and management keys are supported.\nhttps://openrouter.ai/settings/keys\n');
+  const key = await prompt('API key (hidden): ',true);
   if (!key || /\s/.test(key)) throw new Failure('Invalid key format; nothing saved.',3);
-  await request(key,'/analytics/meta');
-  await request(key,'/credits');
+  await currentKey(key);
   await keychain('set',key);
   process.stderr.write('Key verified and stored in macOS Keychain.\n');
   return key;

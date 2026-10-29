@@ -48,3 +48,27 @@ test('CLI help/version and invalid arguments do not touch Keychain', () => {
     assert.equal(run.status,2); assert.ok(!run.stderr.includes('SECRET'));
   }
 });
+
+test('inference keys expose only normalized key usage and limits', async () => {
+  const {currentKey} = await import('../src/api.js');
+  const fixture = {is_management_key:false,label:'SECRET-prefix',usage:12,usage_daily:1,usage_weekly:3,usage_monthly:8,limit:10,limit_remaining:2,limit_reset:'monthly',include_byok_in_limit:true};
+  const key = await currentKey('SECRET',async url => {
+    assert.equal(url,'https://openrouter.ai/api/v1/key');
+    return Response.json({data:fixture});
+  });
+  assert.equal(key.remaining_limit_usd,2);
+  assert.equal(key.usage_usd,12);
+  assert.ok(!JSON.stringify(key).includes('SECRET'));
+  const out = render({mode:'inference',key_usage:key});
+  assert.ok(out.includes('This month'));
+  assert.ok(out.includes('monthly'));
+  assert.ok(!out.includes('Purchased'));
+  const unlimited = await currentKey('SECRET',async () => Response.json({data:{...fixture,limit:null,limit_remaining:null}}));
+  assert.ok(render({mode:'inference',key_usage:unlimited}).includes('No key limit'));
+  await assert.rejects(currentKey('SECRET',async () => Response.json({data:{}})),/unexpected response/);
+});
+test('management key detection retains the account dashboard path', async () => {
+  const {currentKey} = await import('../src/api.js');
+  const key = await currentKey('SECRET',async () => Response.json({data:{is_management_key:true}}));
+  assert.equal(key.is_management_key,true);
+});

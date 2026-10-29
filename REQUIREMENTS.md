@@ -1,5 +1,11 @@
 # orpeek — Product Requirements & Technical Specification
 
+> Updated scope: inference keys are supported through GET /api/v1/key.
+> They show key spending limits and usage, never account credit balances.
+> Management keys retain account credits and per-model analytics. Inference
+> mode is a successful limited-capability view, not a partial API failure.
+> This supersedes the management-only onboarding requirements below.
+
 **Status:** Ready for implementation (MVP)  
 **Version:** 1.0 draft  
 **Prepared:** 29 October 2026  

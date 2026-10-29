@@ -4,6 +4,26 @@ const count = n => n == null ? '-' : typeof n === 'string' ? n : new Intl.Number
 export function render(data, options = {}, width = 80) {
   width = Math.max(20,Math.min(width,100));
   const fit = (s,n) => { s = clean(s); return Array.from(s).length > n ? Array.from(s).slice(0,n-1).join('')+'~' : s; };
+  if (data.mode === 'inference') {
+    const k = data.key_usage;
+    const lines = ['orpeek  /  OpenRouter usage','Live / this API key','',
+      'KEY SPENDING LIMIT',
+      'Limit      '+(k.unlimited ? 'No key limit' : money(k.limit_usd)),
+      'Remaining  '+(k.unlimited ? 'No key limit' : money(k.remaining_limit_usd)),
+      'Resets     '+(k.limit_reset === null ? 'Never' : k.limit_reset),
+      'BYOK in limit  '+(k.include_byok_in_limit === null ? 'Unknown' : k.include_byok_in_limit ? 'Yes' : 'No'),
+      '', 'KEY USAGE / USD',
+      'All time   '+money(k.usage_usd),
+      'Today      '+money(k.usage_daily_usd),
+      'This week  '+money(k.usage_weekly_usd),
+      'This month '+money(k.usage_monthly_usd),
+      'BYOK total '+money(k.byok_usage_usd),
+      '', 'Key limits are not your account balance.',
+      'Account credits and per-model usage',
+      'require a management key.',
+      'Period/sort/top options apply to model analytics only.'];
+    return lines.map(line => fit(line,width)).join('\n')+'\n';
+  }
   const lines = ['orpeek  /  OpenRouter usage',data.freshness === 'live' ? 'Live' : 'Cached by OpenRouter', '', 'ACCOUNT CREDITS / ALL TIME'];
   if (data.account) {
     const a = data.account;
